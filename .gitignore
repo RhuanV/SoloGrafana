@@ -1,0 +1,19 @@
+# --- Ambientes Virtuais ---
+# Ignora a pasta venv onde ficam as bibliotecas instaladas
+venv/
+env/
+.env
+
+# --- Python ---
+# Ignora arquivos compilados que o Python gera automaticamente
+__pycache__/
+*.pyc
+
+# --- IDEs e Editores ---
+# Ignora configurações locais do VS Code ou outros editores
+.vscode/
+.idea/
+
+# --- Logs e Dados Locais ---
+# Se o seu script gerar logs ou dados temporários
+*.log
