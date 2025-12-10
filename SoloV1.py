@@ -36,7 +36,7 @@ fileTel.flush()
 
 print("Initializing Receiver")
 # Adapt Port COM #########################
-SerialObj = serial.Serial('COM3')
+SerialObj = serial.Serial('COM6')
 SerialObj.baudrate = 115200
 SerialObj.bytesize = 8
 SerialObj.parity = 'N'

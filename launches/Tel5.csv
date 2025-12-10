@@ -1,0 +1,1 @@
+Id,Tempo (ms),RSSI (dBm),Checksum (bool),Lat (deg),Lon (deg),Alt (m),Hora,Min,Seg,Temp (Celsius),Pres (Pa),Hum (%),Ax (m/s2),Ay (m/s2),Az (m/s2)
