@@ -1,0 +1,47 @@
+===================================================
+   GUIA DE CONEXÕES DE HARDWARE - CUBESAT EMULATOR
+===================================================
+
+PLACA PRINCIPAL:
+----------------
+Arduino Nano ou Arduino Uno
+Conexão PC: Cabo USB (Porta COM - Baudrate 115200)
+
+---------------------------------------------------
+1. SENSOR INERCIAL (MPU6050)
+   Protocolo: I2C
+---------------------------------------------------
+|  MPU6050   |   ARDUINO (Nano/Uno)   |
+|------------|------------------------|
+|    VCC     |         5V             |
+|    GND     |         GND            |
+|    SCL     |         A5             |
+|    SDA     |         A4             |
+|    INT     |     (Não conectado)    |
+---------------------------------------------------
+
+---------------------------------------------------
+2. MÓDULO GPS (NEO-6M / BN-220)
+   Protocolo: Serial (UART) via SoftwareSerial
+---------------------------------------------------
+|   GPS      |   ARDUINO (Nano/Uno)   |
+|------------|------------------------|
+|    VCC     |         5V             |
+|    GND     |         GND            |
+|    TX      |         D4 (Pino 4)    |
+|    RX      |         D3 (Pino 3)    |
+---------------------------------------------------
+* Nota: O TX do GPS liga no pino definido como RX no código (4).
+* Nota: O RX do GPS liga no pino definido como TX no código (3).
+
+---------------------------------------------------
+RESUMO DE PINOS UTILIZADOS
+---------------------------------------------------
+[A4] -> SDA (MPU6050)
+[A5] -> SCL (MPU6050)
+[D3] -> RX do GPS
+[D4] -> TX do GPS
+[5V] -> Alimentação dos módulos
+[GND]-> Terra comum dos módulos
+
+===================================================

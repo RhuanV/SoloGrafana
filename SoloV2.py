@@ -11,6 +11,47 @@ from datetime import datetime
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
+# --- IMPORTS DE AUTOMAÇÃO ---
+import subprocess
+import webbrowser
+import time
+import sys
+
+# --- FUNÇÃO DE AUTO-LANÇAMENTO ---
+def iniciar_missao():
+    print("\n🚀 INICIANDO SEQUÊNCIA DE LANÇAMENTO...")
+    
+    # 1. Subir o Docker (Silenciosamente se já estiver rodando)
+    print("🐳 Verificando serviços de Telemetria (Docker)...")
+    try:
+        # 'cwd' garante que ele acha o docker-compose na mesma pasta do script
+        subprocess.run(["docker-compose", "up", "-d"], check=True)
+    except FileNotFoundError:
+        print("❌ ERRO: Docker não encontrado. Instale o Docker Desktop.")
+        input("Pressione Enter para sair...")
+        sys.exit()
+    except subprocess.CalledProcessError:
+        print("⚠️ Aviso: Falha ao iniciar Docker. Verifique se o Docker Desktop está aberto.")
+
+    # 2. Aguardar o Banco de Dados (Warm-up)
+    print("⏳ Aguardando aquecimento do banco de dados (5s)...")
+    time.sleep(5) 
+
+    # 3. Abrir o Dashboard Específico
+    # COLE AQUI A URL QUE VOCÊ COPIOU DO SEU NAVEGADOR
+    DASHBOARD_URL = "http://localhost:3000/d/adq9dp2/satdashboard?orgId=1&refresh=100ms&kiosk"
+    
+    # Dica: Adicione '&kiosk' no final da URL para abrir em modo tela cheia/apresentação
+    print(f"🖥️ Abrindo Centro de Controle: {DASHBOARD_URL}")
+    try:
+        webbrowser.open(DASHBOARD_URL)
+    except:
+        pass
+
+# --- CHAMADA DA FUNÇÃO ---
+# Chame isto ANTES de tentar conectar ao InfluxDB
+iniciar_missao()
+
 # --- [NOVO] Configuração do InfluxDB ---
 # Substitua pelo SEU token gerado no passo anterior
 INFLUX_TOKEN = "nQpHZOxI0nJW1NtB3ZydeyZEYDlM2THCZopQ5qLnManv-002oJzsQfv8VMrHXbc-6JEZ7PFHd4L1kTFYG4729g=="
