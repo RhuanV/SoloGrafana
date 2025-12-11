@@ -1,0 +1,21 @@
+{
+    "serial": {
+        "port": "COM6",
+        "baudrate": 115200,
+        "timeout": 3
+    },
+    "station": {
+        "latitude": -23.212542,
+        "longitude": -45.866778,
+        "altitude": 600
+    },
+    "influxdb": {
+        "url": "http://localhost:8086",
+        "token": "nQpHZOxI0nJW1NtB3ZydeyZEYDlM2THCZopQ5qLnManv-002oJzsQfv8VMrHXbc-6JEZ7PFHd4L1kTFYG4729g==",
+        "org": "ITACUBE",
+        "bucket": "telemetria"
+    },
+    "mission": {
+        "name": "Voo_Teste_Alpha"
+    }
+}

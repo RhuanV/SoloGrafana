@@ -4,9 +4,10 @@ import time
 import os
 import math
 import msvcrt
+import json
 from geographiclib.geodesic import Geodesic
 
-# --- [NOVO] Imports para o Dashboard ---
+# --- Imports para o Dashboard ---
 from datetime import datetime
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -17,48 +18,64 @@ import webbrowser
 import time
 import sys
 
-# --- FUNÇÃO DE AUTO-LANÇAMENTO ---
-def iniciar_missao():
-    print("\n🚀 INICIANDO SEQUÊNCIA DE LANÇAMENTO...")
+# # --- FUNÇÃO DE AUTO-LANÇAMENTO ---
+# def iniciar_missao():
+#     print("\n🚀 INICIANDO SEQUÊNCIA DE LANÇAMENTO...")
     
-    # 1. Subir o Docker (Silenciosamente se já estiver rodando)
-    print("🐳 Verificando serviços de Telemetria (Docker)...")
-    try:
-        # 'cwd' garante que ele acha o docker-compose na mesma pasta do script
-        subprocess.run(["docker-compose", "up", "-d"], check=True)
-    except FileNotFoundError:
-        print("❌ ERRO: Docker não encontrado. Instale o Docker Desktop.")
-        input("Pressione Enter para sair...")
-        sys.exit()
-    except subprocess.CalledProcessError:
-        print("⚠️ Aviso: Falha ao iniciar Docker. Verifique se o Docker Desktop está aberto.")
+#     # 1. Subir o Docker (Silenciosamente se já estiver rodando)
+#     print("🐳 Verificando serviços de Telemetria (Docker)...")
+#     try:
+#         # 'cwd' garante que ele acha o docker-compose na mesma pasta do script
+#         subprocess.run(["docker-compose", "up", "-d"], check=True)
+#     except FileNotFoundError:
+#         print("❌ ERRO: Docker não encontrado. Instale o Docker Desktop.")
+#         input("Pressione Enter para sair...")
+#         sys.exit()
+#     except subprocess.CalledProcessError:
+#         print("⚠️ Aviso: Falha ao iniciar Docker. Verifique se o Docker Desktop está aberto.")
 
-    # 2. Aguardar o Banco de Dados (Warm-up)
-    print("⏳ Aguardando aquecimento do banco de dados (5s)...")
-    time.sleep(5) 
+#     # 2. Aguardar o Banco de Dados (Warm-up)
+#     print("⏳ Aguardando aquecimento do banco de dados (5s)...")
+#     time.sleep(5) 
 
-    # 3. Abrir o Dashboard Específico
-    # COLE AQUI A URL QUE VOCÊ COPIOU DO SEU NAVEGADOR
-    DASHBOARD_URL = "http://localhost:3000/d/adq9dp2/satdashboard?orgId=1&refresh=100ms&kiosk"
+#     # 3. Abrir o Dashboard Específico
+#     DASHBOARD_URL = "http://localhost:3000/d/adq9dp2/satdashboard?orgId=1&refresh=100ms&kiosk"
     
-    # Dica: Adicione '&kiosk' no final da URL para abrir em modo tela cheia/apresentação
-    print(f"🖥️ Abrindo Centro de Controle: {DASHBOARD_URL}")
-    try:
-        webbrowser.open(DASHBOARD_URL)
-    except:
-        pass
+#     # Dica: Adicione '&kiosk' no final da URL para abrir em modo tela cheia/apresentação
+#     print(f"🖥️ Abrindo Centro de Controle: {DASHBOARD_URL}")
+#     try:
+#         webbrowser.open(DASHBOARD_URL)
+#     except:
+#         pass
 
-# --- CHAMADA DA FUNÇÃO ---
-# Chame isto ANTES de tentar conectar ao InfluxDB
-iniciar_missao()
+# # --- CHAMADA DA FUNÇÃO ---
+# # Chame isto ANTES de tentar conectar ao InfluxDB
+# iniciar_missao()
 
-# --- [NOVO] Configuração do InfluxDB ---
+# --- Configuração do InfluxDB ---
 # Substitua pelo SEU token gerado no passo anterior
-INFLUX_TOKEN = "nQpHZOxI0nJW1NtB3ZydeyZEYDlM2THCZopQ5qLnManv-002oJzsQfv8VMrHXbc-6JEZ7PFHd4L1kTFYG4729g=="
-INFLUX_ORG = "ITACUBE"
-INFLUX_BUCKET = "telemetria"
-INFLUX_URL = "http://localhost:8086"
 
+# --- CARREGAR CONFIGURAÇÕES EXTERNAS ---
+print("📂 Lendo arquivo de configuração (config.json)...")
+try:
+    with open('config.json', 'r') as f:
+        config = json.load(f)
+    print("✅ Configurações carregadas com sucesso.")
+except FileNotFoundError:
+    print("❌ ERRO: O arquivo 'config.json' não foi encontrado!")
+    print("Crie o arquivo na mesma pasta do script.")
+    sys.exit() # Para o programa se não tiver config
+
+# --- CONFIGURAÇÃO INFLUXDB (Vindo do JSON) ---
+INFLUX_TOKEN = config['influxdb']['token']
+INFLUX_ORG = config['influxdb']['org']
+INFLUX_BUCKET = config['influxdb']['bucket']
+INFLUX_URL = config['influxdb']['url']
+NOME_MISSAO = config['mission']['name']
+
+print(f"📡 Missão Configurada: {NOME_MISSAO}")
+
+# --- CONEXÃO AO INFLUXDB ---
 print("Conectando ao InfluxDB...")
 write_api = None
 try:
@@ -75,10 +92,11 @@ def safe_float(value):
         return float(value)
     except (ValueError, TypeError):
         return 0.0
-
-myLat = -23.212542  # deg
-myLon = -45.866778  # deg
-myAlt = 600  # m
+    
+# --- DADOS DA ESTAÇÃO (Vindo do JSON) ---
+myLat = config['station']['latitude']
+myLon = config['station']['longitude']
+myAlt = config['station']['altitude']
 
 # ------------------------ escrever arquivo
 j = 1
@@ -108,22 +126,30 @@ fileTel.flush()
 # ------------------------ serial start
 
 print("Initializing Receiver")
-# Adapt Port COM #########################
-# ATENÇÃO: Verifique se sua porta é COM3 mesmo
+
+# Adapt Port COM (Vindo do JSON) ##################
 try:
-    SerialObj = serial.Serial('COM6') 
-    SerialObj.baudrate = 115200
+    # AQUI ESTÁ A MUDANÇA CRÍTICA:
+    port_name = config['serial']['port']
+    baud_rate = config['serial']['baudrate']
+    
+    print(f"🔌 Tentando abrir porta: {port_name} a {baud_rate} baud")
+    
+    SerialObj = serial.Serial(port_name) 
+    SerialObj.baudrate = baud_rate
     SerialObj.bytesize = 8
     SerialObj.parity = 'N'
     SerialObj.stopbits = 1
-    SerialObj.timeout = 3
+    SerialObj.timeout = config['serial']['timeout']
+    
     time.sleep(1)
     SerialObj.flushInput()
     print("Init Sucess, receiving data:")
+
 except Exception as e:
-    print(f"ERRO CRÍTICO: Não foi possível abrir a porta Serial: {e}")
-    # Para teste sem rádio, comente a linha abaixo
-    exit() 
+    print(f"❌ ERRO CRÍTICO: Não foi possível abrir a porta {port_name}")
+    print("Verifique o arquivo config.json e se o Arduino está conectado.")
+    exit()
 
 while True:
     if msvcrt.kbhit():
