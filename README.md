@@ -1,177 +1,118 @@
-# 🛰️ CubeSat Ground Station Dashboard (SoloGrafana)
+# 🛰️ Estação de Solo - CubeSat Ground Station V3
 
-Este projeto implementa uma **Estação de Solo (Ground Station)** moderna e escalável para monitorização de telemetria de CubeSats. Utiliza uma arquitetura baseada em microsserviços para capturar, armazenar e visualizar dados críticos de missão em tempo real.
+**Sistema de Monitoramento e Telemetria para Missões CubeSat**
 
-![Dashboard Preview](https://via.placeholder.com/800x400?text=Dashboard+Grafana+Preview)
-*(Substitua este link por um print real do seu dashboard)*
+Este software atua como o "Mission Control" para operações de satélites, projetado para receber dados de telemetria via rádio (LoRa32), processá-los em tempo real e exibi-los em um dashboard de alta performance.
 
-## 📋 Funcionalidades
+A versão V3 conta com uma arquitetura modular, visualização de atitude 3D baseada em WebGL (Three.js) e integração robusta com bancos de dados temporais.
 
-* **Ingestão de Dados em Tempo Real:** Captura pacotes de telemetria via Serial (Rádio/USB).
-* **Armazenamento de Séries Temporais:** Uso do **InfluxDB** para alta performance na gravação de dados históricos.
-* **Visualização Profissional:** Dashboard no **Grafana** com taxa de atualização de até 10Hz (100ms).
-* **Multi-Missão:** Suporte para filtrar e comparar dados de diferentes lançamentos/testes.
-* **Simulação de Hardware:** Inclui código Arduino para emular o satélite e sensores (MPU6050).
-* **Backup Local:** Gravação simultânea de ficheiros `.csv` brutos para redundância.
+## 🚀 Funcionalidades
 
-## 🛠️ Arquitetura do Sistema
+**Comunicação Serial Real-Time:** Conexão direta com antenas de solo (Baseada em LoRa32/ESP32) para recepção de pacotes brutos.
 
-O fluxo de dados segue o padrão da indústria aeroespacial "New Space":
+**Parser Inteligente:** Tratamento de dados, conversão de tipos e verificação de integridade (Checksum) dos pacotes de telemetria.
 
-1. **CubeSat/Arduino:** Envia pacotes de telemetria (String formatada) via Rádio ou Serial.
-2. **Python Gateway (`SoloV1.py` e `SoloV2.py`):**
-   * Lê a porta Serial.
-   * Decodifica o protocolo (Parse).
-   * Salva em CSV local (`/launches`).
-   * Envia para o banco de dados via API.
-3. **InfluxDB (Docker):** Armazena os dados com tags (Missão, Satélite).
-4. **Grafana (Docker):** Consulta o banco e renderiza os gráficos para o operador.
+**Visualização 3D (Digital Twin):** Renderização da atitude do satélite em tempo real no navegador usando Three.js e WebSockets, sem dependência de plugins legados.
 
-## 🚀 Pré-requisitos
+**Dashboard Grafana:** Interface visual completa com:
+- Gráficos de Aceleração, Giroscópio e RSSI.
+- Mapa GPS com rastreamento de rota.
+- Status de Bateria, Temperatura e Pressão.
+- Logs de sistema e diagnósticos.
 
-* **Python 3.8+**
-* **Docker** e **Docker Compose**
-* **Arduino IDE** (para carregar o código no hardware)
+**Persistência de Dados:**
+- **InfluxDB:** Armazenamento temporal para gráficos históricos.
+- **CSV:** Backup local automático de todos os voos na pasta data/launches.
 
-## 📦 Instalação e Configuração
+**Automação:** Script de lançamento (launch.bat) que gerencia todo o ambiente (Docker, Python, Servidor Web).
 
-### 1. Preparar o Ambiente (Docker)
-Na raiz do projeto, onde está o ficheiro `docker-compose.yml`, suba os serviços:
+## 📂 Arquitetura do Projeto
 
-```bash
-docker-compose up -d
+O código foi refatorado para uma estrutura modular, facilitando a manutenção e a escalabilidade:
+
+```
+MeuProjeto/
+│
+├── config/                  # Arquivos de Configuração
+│   ├── config.json          # Configuração da Missão, Porta Serial e InfluxDB
+│   └── influxDBtoken.txt    # Token de segurança do banco (opcional)
+│
+├── data/                    # Armazenamento de Dados
+│   └── launches/            # Logs CSV gerados automaticamente por missão
+│
+├── src/                     # Código Fonte Modular
+│   ├── serial_handler.py    # Gerencia a conexão com o LoRa32 e leitura de blocos
+│   ├── parser.py            # Traduz os dados brutos para o formato do banco
+│   ├── database.py          # Gerencia a conexão e envio para o InfluxDB
+│   ├── file_manager.py      # Gerencia a escrita dos arquivos CSV
+│   ├── Atitude.py           # Servidor WebSocket para o Dashboard 3D
+│   └── Atitude.html         # Código fonte da visualização Three.js (para referência)
+│
+├── docker-compose.yml       # Orquestração dos containers (InfluxDB + Grafana)
+├── launch.bat               # Script de inicialização automática (Windows)
+├── main.py                  # Núcleo do sistema (Orquestrador)
+└── requirements.txt         # Dependências do Python
 ```
 
-* **Grafana:** Acessível em http://localhost:3000
-* **InfluxDB:** Acessível em http://localhost:8086
+## 🛠️ Pré-requisitos
 
-### 2. Configurar o Banco de Dados
-1. Aceda a http://localhost:8086.
-2. Crie uma organização (ex: `cubesat_team`) e um bucket (ex: `telemetria`).
-3. Gere um API Token (com permissão de leitura/escrita).
-4. Copie este Token.
+- **Python 3.8+:** [Download](https://python.org)
+- **Docker Desktop:** Necessário para rodar o banco de dados e o Grafana. [Download](https://docker.com)
+- **Drivers CP210x:** Para reconhecer o LoRa32/ESP32 na porta USB.
 
-### 3. Configurar o Python
-Crie um ambiente virtual para isolar as dependências:
+## ⚙️ Instalação e Configuração
 
+### Clone o Repositório:
 ```bash
-# Criar e ativar venv
+git clone https://github.com/seu-usuario/solografana.git
+cd solografana
+```
+
+### Crie o Ambiente Virtual (Recomendado):
+```bash
 python -m venv venv
+# Ativar no Windows:
+.\venv\Scripts\activate
+```
 
-# Windows:
-.\venv\Scripts\Activate
-# Linux/Mac:
-source venv/bin/activate
-
-# Instalar bibliotecas
+### Instale as Dependências:
+```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configurar o Script da Estação
-Edite o ficheiro `influxDBtoken.txt` e adicione o seu token do InfluxDB.
+### Configure o Sistema:
+1. Abra o arquivo `config/config.json`.
+2. Ajuste a porta serial (`"port": "COM3"` ou `/dev/ttyUSB0`) para corresponder à sua antena LoRa32.
+3. Defina o nome da missão (`"name": "Missao_Alpha_01"`).
 
-Configure as variáveis no script Python (`SoloV1.py` ou `SoloV2.py`):
+## 🛰️ Como Iniciar uma Missão
 
-```python
-INFLUX_TOKEN = "SEU_TOKEN_AQUI"  # ou lido do arquivo influxDBtoken.txt
-INFLUX_ORG = "cubesat_team"
-INFLUX_BUCKET = "telemetria"
-NOME_MISSAO = "Teste_Bancada_01"  # Mude a cada novo teste
-```
+A maneira mais simples é utilizar o script de automação incluído:
 
-## 🎮 Como Usar
+1. **Conecte o LoRa32** na porta USB.
+2. **Execute o arquivo** `launch.bat` (clique duplo).
 
-### Passo A: O Hardware (Satélite/Emulador)
-1. Conecte o Arduino (Nano/Uno) ao computador.
-2. Se estiver a usar o MPU6050, faça as conexões I2C (SDA->A4, SCL->A5).
-3. Carregue o código `simulacao.ino` ou `simulacao2.ino` (disponível nas pastas `/simulacao`).
-4. Verifique qual porta COM foi atribuída (ex: COM3 ou /dev/ttyUSB0).
+O script irá automaticamente:
+- Verificar se o Docker está rodando.
+- Subir os containers do InfluxDB e Grafana.
+- Iniciar um servidor web local para os modelos 3D.
+- Abrir o Dashboard do Grafana no seu navegador em modo tela cheia.
+- Iniciar o `main.py` para começar a capturar e transmitir dados.
 
-### Passo B: A Estação de Solo
-Execute o script Python:
+**Nota:** Para encerrar, feche a janela do terminal do Python ou execute o `stop.bat` (se criado).
 
-```bash
-python SoloV1.py
-# ou
-python SoloV2.py
-```
+## 📊 Visualização no Grafana
 
-Se tudo estiver correto, verá logs como: `✅ Conectado ao Dashboard` e `Dados enviados: Bat=98%`.
+O sistema já inclui um dashboard pré-configurado (**Mission Control Final V3**).
 
-### Passo C: O Dashboard (Grafana)
-1. Aceda a http://localhost:3000 (Login: admin / admin).
-2. Configure a Data Source selecionando InfluxDB (Linguagem: Flux).
-3. Importe ou crie os painéis conforme documentado na Wiki do projeto.
+- **URL Padrão:** http://localhost:3000
+- **Login:** admin / admin (padrão do Docker)
+- **Visualização 3D:** O painel central utiliza HTML/JS nativo para renderizar o satélite. Certifique-se de que o script `launch.bat` rodou o servidor de assets na porta 8000.
 
-## 📊 Estrutura do Dashboard
+## 🔧 Troubleshooting (Problemas Comuns)
 
-O painel de controlo foi desenhado com 3 níveis de informação:
+**Erro de Conexão Serial:** Verifique se o LoRa32 está conectado e se a porta no `config.json` está correta. Feche outros programas (como Arduino IDE) que possam estar usando a porta.
 
-| Nível | Descrição | Visualizações Chave |
-|-------|-----------|-------------------|
-| **1. Sinais Vitais** | Status imediato da saúde do satélite. | • Heartbeat (Último Contacto)<br>• GPS Lock Status<br>• Bateria (Gauge)<br>• RSSI (Sinal) |
-| **2. Missão** | Consciência situacional e navegação. | • Mapa Mundi (Rastreio 3D)<br>• Perfil de Voo (Altitude vs Pressão) |
-| **3. Engenharia** | Diagnóstico profundo dos subsistemas. | • Estabilidade (Vibração/G-Force)<br>• Acelerometria (3 Eixos)<br>• Eficiência do Link (Pacotes/min) |
+**Dados não aparecem no Gráfico:** Verifique se o filtro de "Missão" no topo do Grafana corresponde ao nome configurado no `config.json`.
 
-## 📂 Estrutura de Ficheiros
-
-```
-/
-├── docker-compose.yml      # Orquestração dos contentores (Banco + Grafana)
-├── SoloV1.py              # Script principal da Estação de Solo (Versão 1)
-├── SoloV2.py              # Script principal da Estação de Solo (Versão 2)
-├── requirements.txt        # Dependências Python
-├── influxDBtoken.txt      # Token de acesso ao InfluxDB
-├── README.md              # Documentação
-├── .gitignore             # Arquivos ignorados pelo Git
-├── /data                  # Dados de telemetria em formato JSONL
-│   ├── telemetry.jsonl
-│   └── telemetrycopy.jsonl
-├── /simulacao             # Código Arduino para simulação
-│   └── simulacao.ino
-├── /simulacao2            # Código Arduino alternativo
-│   └── simulacao2.ino
-├── /launches              # (Gerado automaticamente) Logs CSV brutos
-│   ├── Bat1.csv ... Bat32.csv  # Dados de bateria
-│   └── Tel1.csv ... Tel32.csv  # Dados de telemetria
-└── /videoTeste            # Pasta para testes de vídeo (ignorada pelo Git)
-```
-
-## 🔧 Versões do Software
-
-### SoloV1.py vs SoloV2.py
-- **SoloV1.py:** Versão inicial do sistema de telemetria
-- **SoloV2.py:** Versão aprimorada com melhorias de performance e funcionalidades adicionais
-
-### Códigos de Simulação
-- **simulacao.ino:** Emulador básico do CubeSat
-- **simulacao2.ino:** Versão melhorada do emulador com mais sensores
-
-## 🔍 Dados Suportados
-
-O sistema captura e processa os seguintes tipos de telemetria:
-
-* **Bateria (Bat):** Tensão e percentual de carga
-* **Telemetria (Tel):** Dados gerais dos sensores
-* **GPS:** Coordenadas e altitude
-* **IMU:** Acelerômetro, giroscópio e magnetômetro
-* **Ambientais:** Temperatura, pressão e humidade
-
-## 🤝 Contribuição
-
-Para adicionar novas funcionalidades:
-
-1. Crie uma branch para a sua modificação (`git checkout -b feature/novo-sensor`).
-2. No InfluxDB, adicione o novo campo `.field("novo_sensor", valor)` no script Python.
-3. Atualize o ficheiro `docker-compose.yml` se adicionar novos serviços.
-4. Teste thoroughly antes de submeter um pull request.
-
-## 📝 Licença
-
-Este projeto é open source e está disponível sob a licença MIT.
-
----
-
-**Desenvolvido para Missões CubeSat Open Source. 🚀**
-
-*Para mais informações, consulte a documentação técnica ou abra uma issue no repositório.*
+**Visualização 3D travada em "CONNECTING":** Certifique-se de que o `main.py` está rodando (ele sobe o servidor WebSocket na porta 8765) e que o navegador não está bloqueando conexões locais.
