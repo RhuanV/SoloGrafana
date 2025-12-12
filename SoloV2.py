@@ -6,6 +6,7 @@ import math
 import msvcrt
 import json
 from geographiclib.geodesic import Geodesic
+import Atitude.Atitude as Atitude
 
 # --- Imports para o Dashboard ---
 from datetime import datetime
@@ -51,9 +52,6 @@ import sys
 # # --- CHAMADA DA FUNÇÃO ---
 # # Chame isto ANTES de tentar conectar ao InfluxDB
 # iniciar_missao()
-
-# --- Configuração do InfluxDB ---
-# Substitua pelo SEU token gerado no passo anterior
 
 # --- CARREGAR CONFIGURAÇÕES EXTERNAS ---
 print("📂 Lendo arquivo de configuração (config.json)...")
@@ -126,6 +124,9 @@ fileTel.flush()
 # ------------------------ serial start
 
 print("Initializing Receiver")
+
+# --- INICIAR MÓDULO DE ATITUDE 3D ---
+Atitude.iniciar()  # <--- Sobe o servidor WebSocket em paralelo
 
 # Adapt Port COM (Vindo do JSON) ##################
 try:
@@ -259,6 +260,9 @@ while True:
                 if (Checksum != "1"):
                     print("⚠️ Warning: Checksum failed!")
 
+                # --- ATUALIZAR MÓDULO DE ATITUDE 3D ---
+                Atitude.atualizar(safe_float(Ax), safe_float(Ay), safe_float(Az))
+
                 BatMin = safe_float(Millis) / 60000.0
 
                 # --- Prints no Console ---
@@ -270,6 +274,7 @@ while True:
                 try:
                     p = Point("telemetria_sat") \
                         .tag("satelite", "Cubesat-1") \
+                        .tag("missao", NOME_MISSAO) \
                         .tag("checksum_status", "ok" if Checksum == "1" else "fail") \
                         .field("rssi", safe_float(Rssi)) \
                         .field("pacote_id", safe_float(Id)) \

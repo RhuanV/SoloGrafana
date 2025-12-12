@@ -13,7 +13,7 @@ Conexão PC: Cabo USB (Porta COM - Baudrate 115200)
 ---------------------------------------------------
 |  MPU6050   |   ARDUINO (Nano/Uno)   |
 |------------|------------------------|
-|    VCC     |         5V             |
+|    VCC     |         3V3            |
 |    GND     |         GND            |
 |    SCL     |         A5             |
 |    SDA     |         A4             |
@@ -26,7 +26,7 @@ Conexão PC: Cabo USB (Porta COM - Baudrate 115200)
 ---------------------------------------------------
 |   GPS      |   ARDUINO (Nano/Uno)   |
 |------------|------------------------|
-|    VCC     |         5V             |
+|    VCC     |         3V3            |
 |    GND     |         GND            |
 |    TX      |         D4 (Pino 4)    |
 |    RX      |         D3 (Pino 3)    |

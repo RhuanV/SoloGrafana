@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cubo / Satélite — Visual Moderno</title>
+
+<!-- three.js r128 (compatível com seu projeto) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<style>
+  :root{
+    --bg-1: #0d1117;
+    --bg-2: #0a0e14;
+    --muted: #8ea3b6;
+    --accent: #00baff;
+    --glass: rgba(255,255,255,0.06);
+  }
+
+  html,body { height:100%; margin:0; background:var(--bg-1); font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; color: #e6ecf2; }
+  .cubesat-container {
+    width:100vw; height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* canvas ocupa todo o painel com borda suave */
+  #container-3d canvas {
+    width: 96vw;
+    height: 92vh;
+    max-width: 1600px;
+    max-height: 1000px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(2,6,23,0.7);
+    border: 1px solid rgba(255,255,255,0.04);
+    display:block;
+  }
+
+  /* HUD discreta no canto superior direito */
+  .status-overlay {
+    position: absolute;
+    top: 18px;
+    right: 24px;
+    padding: 8px 12px;
+    background: var(--glass);
+    border: 1px solid rgba(255,255,255,0.06);
+    backdrop-filter: blur(6px);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  /* legenda inferior esquerda */
+  .legend {
+    position:absolute; left:24px; bottom:24px;
+    padding:8px 12px; border-radius:8px;
+    background: rgba(0,0,0,0.28); color:var(--muted);
+    border:1px solid rgba(255,255,255,0.03);
+    font-size:13px;
+    z-index:5;
+  }
+
+  /* remove outline/scroll da canvas */
+  canvas { outline:none; }
+</style>
+</head>
+<body>
+  <div class="cubesat-container" id="cubesat-root">
+    <div id="container-3d"></div>
+    <div id="debug-status" class="status-overlay">INIT...</div>
+    <div class="legend">Orientação do sensor</div>
+  </div>
+
+<script>
+(function(){
+  const mount = document.getElementById('container-3d');
+  const statusDiv = document.getElementById('debug-status');
+
+  let scene, camera, renderer, satellite, body, axesHelper, grid;
+  let targetQuaternion = new THREE.Quaternion();
+  let isReady = false;
+  let ws = null;
+
+  // --- util: cria quaternion seguro entre dois vetores unitários
+  // trata o caso dot ≈ -1 (vetores opostos) escolhendo um eixo ortogonal arbitrário
+  function setQuatFromUnitVectorsSafe(outQuat, vFrom, vTo) {
+    // vFrom & vTo: THREE.Vector3 (assumidos normalizados)
+    const EPS = 1e-6;
+    let r = vFrom.dot(vTo) + 1;
+    if (r < EPS) {
+      // vetores praticamente opostos -> escolher eixo ortogonal
+      let tmp = new THREE.Vector3();
+      // tenta qualquer eixo não colinear: use eixo X se for válido, senão Y
+      tmp.set(1, 0, 0).cross(vFrom);
+      if (tmp.lengthSq() < EPS) tmp.set(0, 1, 0).cross(vFrom);
+      tmp.normalize();
+      // quaternion de 180° em torno de tmp: q = (axis * sin(pi/2), cos(pi/2)=0)
+      outQuat.set(tmp.x, tmp.y, tmp.z, 0); // sin(pi/2)=1, cos(pi/2)=0
+      return outQuat.normalize();
+    } else {
+      // fórmula padrão
+      const cross = new THREE.Vector3().crossVectors(vFrom, vTo);
+      outQuat.set(cross.x, cross.y, cross.z, r);
+      return outQuat.normalize();
+    }
+  }
+
+  // Boot seguro: espera THREE carregar
+  function boot(){
+    if (typeof THREE === 'undefined') {
+      statusDiv.innerHTML = 'LOADING THREE...';
+      setTimeout(boot, 120);
+      return;
+    }
+    init();
+  }
+
+  function init(){
+    statusDiv.innerHTML = 'STARTING ENGINE...';
+
+    // cena / camera / renderer
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020205);
+    scene.fog = new THREE.FogExp2(0x020205, 0.02);
+
+    const W = Math.max(600, Math.floor(window.innerWidth * 0.96));
+    const H = Math.max(400, Math.floor(window.innerHeight * 0.92));
+
+    camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 100);
+    camera.position.set(4, 3.2, 5);
+    camera.lookAt(0, 0, 0);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(W, H);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+
+    // limpa mount e insere canvas (mantemos apenas 1 canvas)
+    while (mount.firstChild) mount.removeChild(mount.firstChild);
+    mount.appendChild(renderer.domElement);
+    renderer.domElement.style.borderRadius = '12px';
+
+    // luzes
+    const ambient = new THREE.AmbientLight(0x223344, 1.2);
+    scene.add(ambient);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+    sun.position.set(6, 10, 4);
+    sun.castShadow = true;
+    scene.add(sun);
+
+    // satélite (sem painéis solares)
+    satellite = new THREE.Group();
+    scene.add(satellite);
+
+    // corpo (branco)
+    const bodyGeo = new THREE.BoxGeometry(1, 1, 1);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xFFFFFF, metalness: 0.80, roughness: 0.2 });
+    body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.castShadow = true;
+    satellite.add(body);
+
+    // antena para referência de frente
+    const antGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.9, 10);
+    const antMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.3, roughness: 0.4 });
+    antenna = new THREE.Mesh(antGeo, antMat);
+    antenna.position.set(0, 0.55, 0.0);
+    antenna.rotation.x = Math.PI / 2 * 0.06; // leve inclinação
+    //satellite.add(antenna);
+
+    // helper de eixos e grade sutil (estética)
+    axesHelper = new THREE.AxesHelper(1.5);
+    // deixar axes pouco contrastantes
+    axesHelper.material.linewidth = 1;
+    satellite.add(axesHelper);
+
+    grid = new THREE.GridHelper(20, 20, 0x1b2530, 0x07090b);
+    grid.position.y = -1.8;
+    scene.add(grid);
+
+    // small starfield (pontos sutis)
+    const stars = new THREE.BufferGeometry();
+    const starCount = 300;
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const r = 20 + Math.random() * 30;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      starPositions[3*i]   = r * Math.sin(phi) * Math.cos(theta);
+      starPositions[3*i+1] = r * Math.sin(phi) * Math.sin(theta);
+      starPositions[3*i+2] = r * Math.cos(phi);
+    }
+    stars.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0x476b9a, size: 0.6, opacity: 0.35, transparent: true });
+    const starsPoints = new THREE.Points(stars, starMat);
+    scene.add(starsPoints);
+
+    // estado pronto
+    isReady = true;
+    animate();
+
+    // conectar websocket
+    connectWS();
+
+    window.addEventListener('resize', onResize, false);
+  }
+
+  function onResize(){
+    const parentRect = mount.getBoundingClientRect();
+    const W = Math.max(300, Math.floor(parentRect.width));
+    const H = Math.max(200, Math.floor(parentRect.height));
+    camera.aspect = W / H;
+    camera.updateProjectionMatrix();
+    renderer.setSize(W, H);
+  }
+
+  function animate(){
+    requestAnimationFrame(animate);
+    if (!isReady) return;
+
+    // suavização da rotação do grupo satellite
+    satellite.quaternion.slerp(targetQuaternion, 0.12);
+
+    // leve flutuação vertical
+    satellite.position.y = Math.sin(Date.now() * 0.0009) * 0.04;
+
+    renderer.render(scene, camera);
+  }
+
+  // WebSocket + lógica original, robusta
+  function connectWS(){
+    // fecha socket anterior se existir
+    if (window.cubesatSocket) {
+      try { window.cubesatSocket.close(); } catch(e) {}
+      window.cubesatSocket = null;
+    }
+
+    statusDiv.innerHTML = 'CONNECTING...';
+    statusDiv.style.color = '';
+
+    try {
+      ws = new WebSocket('ws://localhost:8765');
+    } catch(err) {
+      statusDiv.innerHTML = 'WS ERROR';
+      statusDiv.style.color = '#ff6b6b';
+      // tenta reconectar
+      setTimeout(connectWS, 2000);
+      return;
+    }
+    window.cubesatSocket = ws;
+
+    ws.onopen = function(){
+      statusDiv.innerHTML = "LINK ESTABLISHED <span style='color:#0f0'>●</span>";
+      statusDiv.style.color = '#e6ecf2';
+    };
+
+    ws.onmessage = function(ev){
+      try {
+        const d = JSON.parse(ev.data || '{}');
+
+        // parse flexível (ax/ay/az ou Ax/Ay/Az)
+        const ax = parseFloat(d.ax ?? d.Ax ?? d.x ?? 0) || 0;
+        const ay = parseFloat(d.ay ?? d.Ay ?? d.y ?? 0) || 0;
+        const az = parseFloat(d.az ?? d.Az ?? d.z ?? 0) || 0;
+
+        // Mapeamento que usamos originalmente (ajuste se seu sensor usa outra convensão)
+        // X_sensor -> X_world
+        // Z_sensor -> Y_world (up)
+        // Y_sensor -> Z_world (depth)
+        const sensorVec = new THREE.Vector3(ax, az, -ay);
+        if (sensorVec.lengthSq() < 1e-8) {
+          // vetor nulo: manter orientação anterior
+          return;
+        }
+        sensorVec.normalize();
+
+        // vetor "up" do satélite (o eixo que queremos alinhar com sensorVec)
+        const upVec = new THREE.Vector3(0, 1, 0);
+
+        // usando função segura para lidar com casos opostos (180°)
+        setQuatFromUnitVectorsSafe(targetQuaternion, upVec.clone().normalize(), sensorVec.clone().normalize());
+
+        // opcional: atualizar HUD com dados (não obrigatório)
+        statusDiv.innerHTML = 'ONLINE — ax:' + 
+          (ax >= 0 ? ' ' : '') + Math.abs(ax).toFixed(2).padStart(5, '0') + (ax < 0 ? '-' : '') +
+          ' ay:' + 
+          (ay >= 0 ? ' ' : '') + Math.abs(ay).toFixed(2).padStart(5, '0') + (ay < 0 ? '-' : '') +
+          ' az:' + 
+          (az >= 0 ? ' ' : '') + Math.abs(az).toFixed(2).padStart(5, '0') + (az < 0 ? '-' : '');
+
+      } catch(err) {
+        // falha no parse — ignorar
+      }
+    };
+
+    ws.onclose = function(){
+      statusDiv.innerHTML = 'OFFLINE - reconnecting...';
+      statusDiv.style.color = varOr('#8ea3b6', '#8ea3b6');
+      // reconecta após delay
+      setTimeout(connectWS, 2000);
+    };
+
+    ws.onerror = function(){
+      statusDiv.innerHTML = 'WS ERROR';
+      statusDiv.style.color = '#ff6b6b';
+    };
+  }
+
+  // helper: fallback for setting style color with safety (older browsers)
+  function varOr(a,b){ return (typeof a !== 'undefined') ? a : b; }
+
+  // Start
+  boot();
+
+})();
+</script>
+</body>
+</html>
