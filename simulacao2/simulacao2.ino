@@ -61,7 +61,7 @@ void loop() {
     sendTelemetry();
   }
 
-  delay(20);
+  delay(10);
 }
 
 void sendTelemetry() {
