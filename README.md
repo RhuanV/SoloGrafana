@@ -109,6 +109,37 @@ O sistema já inclui um dashboard pré-configurado (**Mission Control Final V3**
 - **Login:** admin / admin (padrão do Docker)
 - **Visualização 3D:** O painel central utiliza HTML/JS nativo para renderizar o satélite. Certifique-se de que o script `launch.bat` rodou o servidor de assets na porta 8000.
 
+## 🖥️ Instalação do Dashboard
+
+Este projeto inclui um arquivo `.json` pré-configurado contendo todo o layout da Estação de Solo (CubeSat V2). Siga os passos abaixo para importá-lo no seu Grafana.
+
+### Pré-requisitos
+- Grafana instalado e rodando (geralmente em http://localhost:3000).
+- Fonte de dados (ex: InfluxDB) já configurada no Grafana.
+
+### Passo a Passo
+
+#### **Obter o Código:**
+1. No repositório, abra o arquivo `dashboard_cubesat_v2.json`.
+2. Copie todo o conteúdo do arquivo (ou faça o download dele).
+
+#### **Acessar a Área de Importação:**
+1. Abra o Grafana no seu navegador.
+2. No menu lateral esquerdo, clique em **Dashboards** (ícone de quatro quadrados) > **New** > **Import**.
+
+#### **Carregar o JSON:**
+- **Opção A (Upload):** Clique no botão "Upload dashboard JSON file" e selecione o arquivo baixado.
+- **Opção B (Colar):** Cole o código JSON copiado na caixa de texto "Import via panel json" e clique no botão **Load**.
+
+#### **Configurar e Confirmar:**
+- **Name:** Você pode renomear o dashboard se desejar.
+- **Folder:** Escolha a pasta onde ele será salvo (ex: General).
+- **Select a data source:** ⚠️ **Muito Importante:** O Grafana pedirá para você mapear a fonte de dados usada no JSON. Selecione o seu banco de dados (InfluxDB) no menu suspenso.
+
+#### **Finalizar:**
+Clique em **Import**. O dashboard deve carregar imediatamente.
+
+
 ## 🔧 Troubleshooting (Problemas Comuns)
 
 **Erro de Conexão Serial:** Verifique se o LoRa32 está conectado e se a porta no `config.json` está correta. Feche outros programas (como Arduino IDE) que possam estar usando a porta.
@@ -116,3 +147,5 @@ O sistema já inclui um dashboard pré-configurado (**Mission Control Final V3**
 **Dados não aparecem no Gráfico:** Verifique se o filtro de "Missão" no topo do Grafana corresponde ao nome configurado no `config.json`.
 
 **Visualização 3D travada em "CONNECTING":** Certifique-se de que o `main.py` está rodando (ele sobe o servidor WebSocket na porta 8765) e que o navegador não está bloqueando conexões locais.
+
+* **Logo da Equipe:** No painel de cabeçalho (HTML), localize a tag `<img>` e altere o atributo `src` para o caminho da sua imagem (ex: `/public/img/logo.png`) ou cole o código Base64 gerado.
