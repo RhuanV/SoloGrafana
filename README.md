@@ -80,13 +80,31 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
+### Configure o Docker:
+1. O código só funciona com o docker RODANDO no windows. Sempre inicie o Docker.
+2. inicie os containers rodando `docker-compose up -d` na pasta do projeto. Isso inicia Grafana e InfluxDB.
+
+### Configure o InfluxDB:
+1. Abra o banco de dados em `http://localhost:8086/`
+2. Crie um login e configure o banco de dados localmente
+
+### Configure o Grafana:
+1. Abra o Grafana em `http://localhost:3000/`.
+2. Crie login e configure o usuário
+3. Conecte ao banco InfluxDB configurado anteriormente
+4. Comece um dashboard e selecione a opção de importar por .Json, 
+    o código está em `./GrafanaDashboard/dashboard_cubesat_v2.json`
+5. Crie o dashboard com nome "mission-control-final-v3-blue"
+
 ### Configure o Sistema:
 1. Abra o arquivo `config/config.json`.
 2. Ajuste a porta serial (`"port": "COM3"` ou `/dev/ttyUSB0`) para corresponder à sua antena LoRa32.
 3. Defina o nome da missão (`"name": "Missao_Alpha_01"`).
 
-## 🛰️ Como Iniciar uma Missão
+Essas configurações só precisam ser realizadas uma vez!
 
+
+## 🛰️ Como Iniciar uma Missão
 A maneira mais simples é utilizar o script de automação incluído:
 
 1. **Conecte o LoRa32** na porta USB.

@@ -21,4 +21,5 @@ __pycache__/
 # --- Pastas de Teste ---
 # Ignora pasta de testes de vídeo
 videoTeste/
+data/
 launches/

@@ -52,7 +52,8 @@ def main():
                 dados_csv = {**pacote['tags'], **pacote['fields'], "millis": nums['millis']}
                 file_manager.salvar_dados(csv_file, dados_csv)
                 
-                print(f"📡 RX: Id={pacote['fields']['pacote_id']} | Bat={pacote['fields']['bateria_pct']}% | Checksum={pacote['tags']['checksum_status']}")
+                # Exibir dados em linha única compacta
+                print(f"📡 ID:{pacote['fields']['pacote_id']:>5} | 🔋{pacote['fields']['bateria_pct']}% | 📶{pacote['fields']['rssi']}dBm | 🌍{pacote['fields']['latitude']:.4f},{pacote['fields']['longitude']:.4f} | 🌡️{pacote['fields']['temperatura']}°C | ✓{pacote['tags']['checksum_status']}")
 
         except KeyboardInterrupt:
             break

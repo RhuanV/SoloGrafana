@@ -17,5 +17,9 @@
     },
     "mission": {
         "name": "Voo_Teste_Alpha"
+    },
+    "dashboard": {
+        "url": "http://localhost:3000/d/cubesat_v3_blue/mission-control-final-v3-blue?orgId=1&refresh=1s&kiosk",
+        "name": "mission-control-final-v3-blue"
     }
 }

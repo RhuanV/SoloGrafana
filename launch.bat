@@ -27,8 +27,8 @@ IF %ERRORLEVEL% NEQ 0 (
 )
 
 :: Aguarda 5 segundos para o banco de dados acordar
-echo ... Aguardando inicializacao dos servicos (5s)...
-timeout /t 5 /nobreak >nul
+echo ... Aguardando inicializacao dos servicos ...
+timeout /t 2 /nobreak >nul
 
 :: --- 3. HOSPEDAR ARQUIVOS 3D (Servidor HTTP em Background) ---
 echo [3/5] Iniciando servidor de Assets 3D (Porta 8000)...
@@ -39,8 +39,11 @@ start /min "Servidor 3D (Nao Feche)" python -m http.server 8000 --bind 127.0.0.1
 echo [4/5] Abrindo Mission Control...
 :: Substitua a URL abaixo pelo link exato do seu dashboard importado
 :: O parametro '&kiosk' força a tela cheia
-set DASHBOARD_URL="http://localhost:3000/d/cubesat_v3_blue/mission-control-final-v3-blue?orgId=1&refresh=1s&kiosk"
-start "" %DASHBOARD_URL%
+for /f "delims=" %%i in ('powershell -Command "(Get-Content config/config.json | ConvertFrom-Json).dashboard.url"') do set DASHBOARD_URL=%%i
+:: set DASHBOARD_URL="http://localhost:3000/d/cubesat_v3_blue/mission-control-final-v3-blue?orgId=1&refresh=1s&kiosk"
+for /f "delims=" %%i in ('powershell -Command "(Get-Content config/config.json | ConvertFrom-Json).mission.name"') do set MISSION_NAME=%%i
+set "FULL_URL=%DASHBOARD_URL%&var-missao=%MISSION_NAME%"
+start "" "%FULL_URL%"
 
 :: --- 5. RODAR CÓDIGO PRINCIPAL (Python) ---
 echo [5/5] Executando Station Core (main.py)...
